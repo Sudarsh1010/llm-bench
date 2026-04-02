@@ -100,3 +100,22 @@ Seed:        1234
   12 prompt tokens → 256 completion tokens (prompt: 126.0 tok/s)
 └─────────────┴───────────┴─────────────┴──────────────┴────────────┘
 ```
+
+```
+=== LLM Bench Results ===
+Model:       qwen2.5-3b-instruct-q4_k_m.gguf
+Prompt:      "Explain quantum entanglement in 3 sentences."
+Max Tokens:  256
+GPU Layers:  -1
+Context:     4096
+Seed:        1234
+
+┌─────────────┬───────────┬─────────────┬──────────────┬────────────┐
+│ Backend     │ Tok/sec   │ Prompt(ms)  │ Generate(ms) │ Total(ms)  │
+├─────────────┼───────────┼─────────────┼──────────────┼────────────┤
+│ llama-cpp   │     64.45 │        50.2 │       1287.8 │     1338.0 │
+  11 prompt tokens → 83 completion tokens (prompt: 219.0 tok/s)
+│ mistralrs   │     59.67 │        68.0 │       1324.0 │     1392.0 │
+  40 prompt tokens → 79 completion tokens (prompt: 588.2 tok/s)
+└─────────────┴───────────┴─────────────┴──────────────┴────────────┘
+```

@@ -72,7 +72,30 @@
             ${pkgs.lib.optionalString (cudaPkgs != [ ]) ''
               export CUDA_PATH="${pkgs.cudaPackages.cudatoolkit}"
               export CUDA_HOME="$CUDA_PATH"
-              export LD_LIBRARY_PATH="${pkgs.cudaPackages.cudatoolkit}/lib64:$LD_LIBRARY_PATH"
+              export LD_LIBRARY_PATH="${pkgs.linuxPackages.nvidia_x11}/lib:$LD_LIBRARY_PATH"
+
+              export LD_LIBRARY_PATH="${pkgs.cudaPackages.cudatoolkit}/lib:$LD_LIBRARY_PATH"
+              # Static linker needs LIBRARY_PATH to find cudart_static.a
+              export LIBRARY_PATH="${pkgs.cudaPackages.cudatoolkit}/lib:$LIBRARY_PATH"
+
+              # Nix CUDA merged package ships cudart_static.a and culibos.a
+              # but NOT cublas_static.a / cublasLt_static.a (only .so).
+              # llama-cpp-sys-2 build.rs hardcodes static linking on Linux,
+              # so we create dummy .a archives and dynamically link the real libs.
+              WORKAROUND_DIR=$(mktemp -d)
+              touch "$WORKAROUND_DIR/dummy.c"
+              ${pkgs.gcc}/bin/gcc -c "$WORKAROUND_DIR/dummy.c" -o "$WORKAROUND_DIR/dummy.o"
+              for lib in cublas_static cublasLt_static; do
+                ${pkgs.gcc}/bin/ar rcs "$WORKAROUND_DIR/lib''${lib}.a" "$WORKAROUND_DIR/dummy.o"
+              done
+              trap "rm -rf $WORKAROUND_DIR" EXIT
+
+              # Nix merged CUDA puts libs in lib/ not lib64/ —
+              # find_cuda_helper crate may look in the wrong place,
+              # so explicitly tell the Rust linker where to search.
+              # Include the workaround dir for dummy .a stubs and
+              # dynamic links for the real CUDA shared libs.
+              export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-L ${pkgs.cudaPackages.cudatoolkit}/lib -L $WORKAROUND_DIR -l cublas -l cublasLt"
             ''}
 
             # Use gcc wrapper (it wraps clang + has correct glibc include paths)
