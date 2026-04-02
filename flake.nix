@@ -44,9 +44,6 @@
           with pkgs;
           [
             llvmPackages.libclang
-            clang
-            cmake
-            pkg-config
             gcc
           ]
           ++ cudaPkgs;
@@ -54,6 +51,8 @@
         nativeBuildInputs = with pkgs; [
           rustToolchain
           llvmPackages.llvm
+          cmake
+          ninja
           pkg-config
         ];
       in
@@ -66,7 +65,8 @@
 
           shellHook = ''
             # bindgen needs libclang
-            export LIBCLANG_PATH="${pkgs.llvmPackages.libclang}/lib"
+            export LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib"
+            export LD_LIBRARY_PATH="${pkgs.llvmPackages.libclang.lib}/lib:$LD_LIBRARY_PATH"
 
             # CUDA env (only set if cudaPackages are present)
             ${pkgs.lib.optionalString (cudaPkgs != [ ]) ''
@@ -75,9 +75,17 @@
               export LD_LIBRARY_PATH="${pkgs.cudaPackages.cudatoolkit}/lib64:$LD_LIBRARY_PATH"
             ''}
 
-            # Cargo uses clang for C++ compilation via bindgen
-            export CC="${pkgs.clang}/bin/clang"
-            export CXX="${pkgs.clang}/bin/clang++"
+            # Use gcc wrapper (it wraps clang + has correct glibc include paths)
+            export CC="${pkgs.gcc}/bin/gcc"
+            export CXX="${pkgs.gcc}/bin/g++"
+
+            # bindgen uses libclang directly — give it glibc headers
+            export BINDGEN_EXTRA_CLANG_ARGS="-I${pkgs.stdenv.cc.cc.lib.dev or pkgs.glibc.dev}/include"
+            # Extract glibc dev include path from gcc wrapper's own specs
+            GLIBC_INC=$(gcc -xc -E -Wp,-v - < /dev/null 2>&1 | grep "^ " | tr -d ' ' | grep glibc | head -1)
+            if [ -n "$GLIBC_INC" ]; then
+              export BINDGEN_EXTRA_CLANG_ARGS="-I$GLIBC_INC"
+            fi
 
             # Avoid cmake/ninja rebuilds from nix store differences
             export CMAKE_GENERATOR="Ninja"
@@ -85,7 +93,7 @@
 
             echo "🔧  llm-bench dev shell"
             echo "    rust: $(rustc --version)"
-            echo "    clang: $(clang --version | head -1)"
+            echo "    gcc: $(gcc --version | head -1)"
             ${pkgs.lib.optionalString (cudaPkgs != [ ]) ''
               echo "    cuda: $CUDA_PATH"
             ''}

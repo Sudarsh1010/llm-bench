@@ -16,7 +16,7 @@ use llama_cpp_2::llama_batch::LlamaBatch;
 #[cfg(feature = "llama-cpp")]
 use llama_cpp_2::model::params::LlamaModelParams;
 #[cfg(feature = "llama-cpp")]
-use llama_cpp_2::model::{AddBos, LlamaModel, Special};
+use llama_cpp_2::model::{AddBos, LlamaModel};
 #[cfg(feature = "llama-cpp")]
 use llama_cpp_2::sampling::LlamaSampler;
 
@@ -83,7 +83,7 @@ pub fn bench_llama(config: &BenchConfig) -> Result<LlamaBenchOutput> {
         }
 
         let token_str = model
-            .token_to_str(new_token, Special::Tokenize)
+            .token_to_piece(new_token, &mut encoding_rs::UTF_8.new_decoder(), true, None)
             .unwrap_or_default();
         generated_text.push_str(&token_str);
 
