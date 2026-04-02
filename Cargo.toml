@@ -1,0 +1,19 @@
+[package]
+name = "llm-bench"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["llama-cpp", "mistralrs"]
+llama-cpp = ["llama-cpp-2"]
+mistralrs = ["dep:mistralrs", "dep:tokio"]
+cuda = ["llama-cpp-2/cuda", "mistralrs/cuda"]
+metal = ["llama-cpp-2/metal", "mistralrs/metal"]
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+llama-cpp-2 = { version = "0.1", default-features = false, optional = true }
+mistralrs = { version = "0.7", default-features = false, optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"], optional = true }
+encoding_rs = "0.8"
