@@ -1,0 +1,50 @@
+name: Build Windows CUDA
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Windows x86_64 CUDA
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install CUDA Toolkit
+        uses: Jimver/cuda-toolkit@v0.2.30
+        id: cuda-toolkit
+        with:
+          cuda: "12.6.0"
+          method: "network"
+          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "visual_studio_integration"]'
+
+      - name: Verify CUDA
+        shell: pwsh
+        run: |
+          nvcc --version
+          Write-Host "CUDA_PATH: $env:CUDA_PATH"
+
+      - name: Build (all backends + CUDA)
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+          cargo build --features cuda --release
+        env:
+          CUDA_PATH: ${{ steps.cuda-toolkit.outputs.CUDA_PATH }}
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: llm-bench-windows-cuda
+          path: target/release/llm-bench.exe
+          retention-days: 30
