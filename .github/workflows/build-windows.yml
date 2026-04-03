@@ -26,7 +26,7 @@ jobs:
         with:
           cuda: "12.6.0"
           method: "network"
-          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "visual_studio_integration"]'
+          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "nvrtc", "nvrtc_dev", "curand", "curand_dev", "visual_studio_integration"]'
 
       - name: Verify CUDA
         shell: pwsh
