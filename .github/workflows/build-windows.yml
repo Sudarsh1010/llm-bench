@@ -21,11 +21,17 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
+      - name: Cache cargo registry & build
         uses: Swatinem/rust-cache@v2
         with:
           key: windows-cuda-mistralrs
           save-if: ${{ github.ref == 'refs/heads/dev' }}
+
+      - name: Cache CUDA toolkit
+        uses: actions/cache@v4
+        with:
+          path: C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6
+          key: cuda-toolkit-12.6.0-windows
 
       - name: Install CUDA Toolkit
         uses: Jimver/cuda-toolkit@v0.2.30
@@ -45,9 +51,42 @@ jobs:
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
           cargo build --no-default-features --features mistralrs,cuda --release
 
-      - name: Upload binary
+      - name: Package release
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "llm-bench-windows-x64" -Force | Out-Null
+          Copy-Item "target\release\llm-bench.exe" "llm-bench-windows-x64\"
+
+          $cudaBin = "${{ steps.cuda-toolkit.outputs.CUDA_PATH }}\bin"
+          foreach ($dll in @(
+            "cudart64_12.dll",
+            "cublas64_12.dll",
+            "cublasLt64_12.dll",
+            "nvrtc64_12.dll",
+            "curand64_12.dll"
+          )) {
+            $src = Join-Path $cudaBin $dll
+            if (Test-Path $src) {
+              Copy-Item $src "llm-bench-windows-x64\"
+              Write-Host "  Bundled $dll"
+            } else {
+              Write-Warning "  Missing $dll"
+            }
+          }
+
+          # nvrtc needs CUDA fatbin for JIT compilation
+          $cudaFatbin = "${{ steps.cuda-toolkit.outputs.CUDA_PATH }}\nvrtc\lib"
+          if (Test-Path (Join-Path $cudaFatbin "nvrtc-fatbin.dll")) {
+            Copy-Item "$cudaFatbin\nvrtc-fatbin.dll" "llm-bench-windows-x64\"
+            Write-Host "  Bundled nvrtc-fatbin.dll"
+          }
+
+          Compress-Archive -Path "llm-bench-windows-x64" -DestinationPath "llm-bench-windows-x64.zip"
+          Get-ChildItem "llm-bench-windows-x64" | Format-Table Name, Length
+
+      - name: Upload zip
         uses: actions/upload-artifact@v4
         with:
-          name: llm-bench-windows-cuda
-          path: target/release/llm-bench.exe
+          name: llm-bench-windows-x64
+          path: llm-bench-windows-x64.zip
           retention-days: 30
