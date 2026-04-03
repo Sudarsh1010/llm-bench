@@ -8,17 +8,24 @@ on:
     branches: [dev]
   workflow_dispatch:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   build:
-    name: Windows x86_64 CUDA
+    name: Windows x86_64 CUDA (mistralrs)
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
         with:
-          targets: x86_64-pc-windows-msvc
+          key: windows-cuda-mistralrs
+          save-if: ${{ github.ref == 'refs/heads/dev' }}
 
       - name: Install CUDA Toolkit
         uses: Jimver/cuda-toolkit@v0.2.30
@@ -28,25 +35,14 @@ jobs:
           method: "network"
           sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "nvrtc", "nvrtc_dev", "curand", "curand_dev", "visual_studio_integration"]'
 
-      - name: Verify CUDA
+      - name: Build (mistralrs + CUDA)
         shell: pwsh
-        run: |
-          nvcc --version
-          Write-Host "CUDA_PATH: $env:CUDA_PATH"
-
-      - name: Setup CUDA compute Capability
-        shell: pwsh
-        run: |
-          echo "CUDA_COMPUTE_CAP=80" >> $env:GITHUB_ENV
-
-      - name: Build (all backends + CUDA)
-        shell: cmd
-        run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
-          cargo build --features cuda --release
         env:
           CUDA_COMPUTE_CAP: "80"
           CUDA_PATH: ${{ steps.cuda-toolkit.outputs.CUDA_PATH }}
+          RUSTFLAGS: "-C target-feature=+crt-static"
+        run: |
+          cargo build --no-default-features --features mistralrs,cuda --release
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
