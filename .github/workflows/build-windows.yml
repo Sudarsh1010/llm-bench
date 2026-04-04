@@ -47,6 +47,7 @@ jobs:
           CUDA_COMPUTE_CAP: "80"
           CMAKE_CUDA_ARCHITECTURES: "80;86;89"
           CUDA_PATH: ${{ steps.cuda-toolkit.outputs.CUDA_PATH }}
+          LLAMA_STATIC_CRT: "ON"
           RUSTFLAGS: "-C target-feature=+crt-static"
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
