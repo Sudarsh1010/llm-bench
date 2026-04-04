@@ -13,7 +13,7 @@ env:
 
 jobs:
   build:
-    name: Windows x86_64 CUDA (mistralrs)
+    name: Windows x86_64 CUDA (llama-cpp + mistralrs)
     runs-on: windows-latest
 
     steps:
@@ -24,7 +24,7 @@ jobs:
       - name: Cache cargo registry & build
         uses: Swatinem/rust-cache@v2
         with:
-          key: windows-cuda-mistralrs
+          key: windows-cuda-both
           save-if: ${{ github.ref == 'refs/heads/dev' }}
 
       - name: Cache CUDA toolkit
@@ -39,17 +39,18 @@ jobs:
         with:
           cuda: "12.6.0"
           method: "network"
-          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "nvrtc", "nvrtc_dev", "curand", "curand_dev", "visual_studio_integration"]'
+          sub-packages: '["nvcc", "cudart", "cublas", "cublas_dev", "nvrtc", "nvrtc_dev", "curand", "curand_dev", "thrust", "visual_studio_integration"]'
 
-      - name: Build (mistralrs + CUDA)
+      - name: Build (llama-cpp + mistralrs with CUDA)
         shell: cmd
         env:
           CUDA_COMPUTE_CAP: "80"
+          CMAKE_CUDA_ARCHITECTURES: "80;86;89"
           CUDA_PATH: ${{ steps.cuda-toolkit.outputs.CUDA_PATH }}
           RUSTFLAGS: "-C target-feature=+crt-static"
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
-          cargo build --no-default-features --features mistralrs,cuda --release
+          cargo build --no-default-features --features llama-cpp,mistralrs,cuda --release
 
       - name: Package release
         shell: pwsh
