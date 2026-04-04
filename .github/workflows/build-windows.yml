@@ -24,7 +24,7 @@ jobs:
       - name: Cache cargo registry & build
         uses: Swatinem/rust-cache@v2
         with:
-          key: windows-cuda-both
+          key: windows-cuda-both-v2
           save-if: ${{ github.ref == 'refs/heads/dev' }}
 
       - name: Cache CUDA toolkit
@@ -46,6 +46,7 @@ jobs:
         env:
           CUDA_COMPUTE_CAP: "80"
           CMAKE_CUDA_ARCHITECTURES: "80;86;89"
+          CMAKE_MSVC_RUNTIME_LIBRARY: "MultiThreaded"
           CUDA_PATH: ${{ steps.cuda-toolkit.outputs.CUDA_PATH }}
           LLAMA_STATIC_CRT: "ON"
           RUSTFLAGS: "-C target-feature=+crt-static"
