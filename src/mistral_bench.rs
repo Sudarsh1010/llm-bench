@@ -2,6 +2,11 @@
 use std::time::Instant;
 
 #[cfg(feature = "mistralrs")]
+use cuda_runtime_sys::{cudaFree, cudaGetDevice, cudaMalloc, cudaSetDevice, cudaStreamDestroy, cudaStream_t, cudaStreamCreate, cudaDeviceSynchronize, cudaGetLastError, cudaDeviceProp, cudaGetDeviceProperties, cudaError_t, cudaSuccess};
+#[cfg(feature = "mistralrs")]
+use std::ptr::null_mut;
+
+#[cfg(feature = "mistralrs")]
 use anyhow::Result;
 #[cfg(feature = "mistralrs")]
 use mistralrs::{
@@ -19,6 +24,28 @@ pub struct MistralBenchOutput {
 
 #[cfg(feature = "mistralrs")]
 pub async fn bench_mistral(config: &BenchConfig) -> Result<MistralBenchOutput> {
+    // Initialize CUDA context
+    unsafe {
+        // Set the CUDA device (using device 0 as default)
+        let mut device = 0;
+        let result = cudaSetDevice(device);
+        if result != cudaSuccess {
+            return Err(anyhow::anyhow!("Failed to set CUDA device: {}", cudaGetLastError()));
+        }
+
+        // Get device properties to verify CUDA capability
+        let mut props: cudaDeviceProp = std::mem::zeroed();
+        let result = cudaGetDeviceProperties(&mut props, device);
+        if result != cudaSuccess {
+            return Err(anyhow::anyhow!("Failed to get device properties: {}", cudaGetLastError()));
+        }
+
+        println!("  Using CUDA device: {} ({}), Compute Capability: {}.{}", 
+                device, 
+                std::ffi::CStr::from_ptr(props.name.as_ptr()).to_string_lossy(),
+                props.major, props.minor);
+    }
+
     let model_path = std::path::Path::new(&config.model_path);
     let model_dir = model_path
         .parent()
